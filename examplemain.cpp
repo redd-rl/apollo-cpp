@@ -18,6 +18,8 @@ using namespace RLGSC; // RLGymSim
 
 static std::vector<std::string> g_RewardNames = {};
 
+
+
 // This is our step callback, it's called every step from every RocketSim game
 // WARNING: This is called from multiple threads, often simultaneously, 
 //	so don't access things apart from these arguments unless you know what you're doing.
@@ -77,22 +79,31 @@ void OnIteration(Learner* learner, Report& allMetrics) {
 	}
 }
 
+constexpr auto NDR = [](RewardFunction* rewardFunc) -> NotDemoedReward* {
+	return new NotDemoedReward(rewardFunc);
+};
+
 // Create the RLGymSim environment for each of our games
 EnvCreateResult EnvCreateFunc() {
-	constexpr int TICK_SKIP = 8;
-	constexpr float NO_TOUCH_TIMEOUT_SECS = 3.f;
-
+	constexpr int TICK_SKIP = 10;
+	constexpr float NO_TOUCH_TIMEOUT_SECS = 15.f;
+	float aggressionBias = 0.25f;
+	float goalReward = 10;
+	float concedeReward = -goalReward * (1 - aggressionBias);
 	auto rewards = new LogCombinedReward( // Format is { RewardFunc(), weight }
 		{ 
-			{ new EventReward({.touch = 1.f}), 50.f },
-			// Small reward for facing the ball
-			{ new SpeedTowardBallReward(), 5.f },
-
-			// Moderate reward for going towards the ball
-			{ new FaceBallReward(), 1.f }, 
-
-			// Bigger reward for having the ball go towards the goal
-			{ new InAirReward(), 1.0f }, 
+			{ new EventReward({.teamGoal = goalReward, .concede = concedeReward,}), 30.f},
+			{ new ZeroSumReward(new TouchBallRewardScaledByHitForce(), 1.f, 0.5f), 10.f},
+			{ new SpeedTowardBallReward(), 4.f},
+			{ NDR(new InAirReward()), 0.25f},
+			{ new ZeroSumReward(new VelocityBallToGoalReward(), 1.f, 1.f), 20.f},
+			{ new SpeedflipKickoffReward(), 8.f },
+			{ new ZeroSumReward(new PossessionReward(), 1.f, 1.f), 5.f},
+			{ new ZeroSumReward(new JumpTouchReward(), 1.f, 0.5f), 3.f},
+			{ new LightingMcQueenReward(), 2.f},
+		    { new ZeroSumReward(new AerialReward(), 1.f, 0.5f), 1.3f},
+			{ new ZeroSumReward(new SaveBoostReward(), 1.f, 0.35f), 0.5f},
+			{ new ZeroSumReward(new GoalSpeedAndPlacementReward(), 1, 0.6f), 0.9f},
 		}
 	);
 
@@ -115,9 +126,9 @@ EnvCreateResult EnvCreateFunc() {
 	auto actionParser = new DiscreteAction();
 	auto stateSetter = new WeightedSampleSetter(
 		{ 
-			{new RandomState(true, true, false), 0.5f},
-		    {new KickoffState(), 0.5f},
-			{new WallPracticeState(), 0.2} 
+			{new RandomState(true, true, false), 0.7f},
+		    {new KickoffState(), 0.3f},
+			{new WallPracticeState(), 0.7f},
 		}
 	);
 
@@ -136,16 +147,32 @@ EnvCreateResult EnvCreateFunc() {
 	return { match, gym };
 }
 
-int main() {
+int main(int argc, char* argv[]) {
+	std::filesystem::path exePath = std::filesystem::path(argv[0]);
+	std::filesystem::path policyPath = exePath.parent_path() / "PPO_POLICY.lt";
 	// Initialize RocketSim with collision meshes
 	RocketSim::Init("./collision_meshes");
 
 	// Make configuration for the learner
 	LearnerConfig cfg = {};
+	cfg.renderMode = false; // Don't render
 
+	// Check if the --render flag was provided
+	for (int i = 1; i < argc; ++i) {
+		if (std::strcmp(argv[i], "--render") == 0) {
+			cfg.renderMode = true; // Do render
+			break;
+		};
+	};
 	// Play around with these to see what the optimal is for your machine, more isn't always better
-	cfg.numThreads = 16;
-	cfg.numGamesPerThread = 16;
+	cfg.numThreads = 25;
+	cfg.numGamesPerThread = 30;
+	cfg.skillTrackerConfig.enabled = true;
+	// cfg.skillTrackerConfig.perModeRatings = true later
+	cfg.timestepsPerSave = 2 * 1000 * 1000;
+	cfg.checkpointsToKeep = 30;
+	cfg.skillTrackerConfig.numEnvs = 6;
+	cfg.skillTrackerConfig.numThreads = 6;
 
 	cfg.metricsRunName = "Apollo-X";
 	cfg.metricsProjectName = "Apollo";
@@ -156,7 +183,7 @@ int main() {
 	int tsPerItr = 100 * 1000;
 	cfg.timestepsPerIteration = tsPerItr;
 	cfg.ppo.batchSize = tsPerItr;
-	cfg.ppo.miniBatchSize = 25 * 1000; // Lower this if too much VRAM is being allocated
+	cfg.ppo.miniBatchSize = 50 * 1000; // Lower this if too much VRAM is being allocated
 	cfg.expBufferSize = tsPerItr * 3;
 	
 	// This is just set to 1 to match rlgym-ppo example
@@ -168,15 +195,14 @@ int main() {
 	cfg.ppo.entCoef = 0.01f;
 
 	// Decently-strong learning rate to start, may start to be too high around 100m steps
-	cfg.ppo.policyLR = 8e-4;
-	cfg.ppo.criticLR = 8e-4;
+	cfg.ppo.policyLR = 1e-4;
+	cfg.ppo.criticLR = 1e-4;
 
 	// Default model size
 	cfg.ppo.policyLayerSizes = { 1024, 1024, 1024, 1024, 512 };
 	cfg.ppo.criticLayerSizes = { 2048, 2048, 1024, 1024, 512 };
 	
 	cfg.sendMetrics = true; // Send metrics
-	cfg.renderMode = false; // Don't render
 
 	// Make the learner with the environment creation function and the config we just made
 	Learner learner = Learner(EnvCreateFunc, cfg);

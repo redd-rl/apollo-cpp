@@ -2,6 +2,7 @@
 
 #include <rlbot/bot.h>
 #include <RLGymSim_CPP/Utils/OBSBuilders/OBSBuilder.h>
+#include <RLGymSim_CPP/Utils/OBSBuilders/DefaultOBS.h>
 #include <RLGymSim_CPP/Utils/ActionParsers/ActionParser.h>
 
 #include <RLGymPPO_CPP/Util/PolicyInferUnit.h>
@@ -10,12 +11,12 @@ struct RLBotParams {
 	// Set this to the same port used in rlbot/port.cfg
 	int port;
 
-	RLGSC::OBSBuilder* obsBuilder = NULL; // Use your OBS builder
-	RLGSC::ActionParser* actionParser = NULL; // Use your action parser
+	RLGSC::OBSBuilder* obsBuilder; // Use your OBS builder
+	RLGSC::ActionParser* actionParser; // Use your action parser
 
 	std::filesystem::path policyPath; // The path to your trained PPO_POLICY.lt
 	int obsSize; // You can find this from the console when running training
-	std::vector<int> policyLayerSizes = {}; // Your layer sizes
+	std::vector<int> policyLayerSizes; // Your layer sizes
 	int tickSkip; // Your tick skip
 };
 

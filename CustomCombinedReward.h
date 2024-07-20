@@ -21,6 +21,9 @@ public:
         if (dynamic_cast<ZeroSumReward*>(func))
             func = ((ZeroSumReward*)func)->childFunc;
 
+        if (dynamic_cast<NotDemoedReward*>(func))
+            func = ((NotDemoedReward*)func)->childFunc;
+
         const char* typeName = (typeid(*func).name() + sizeof("class"));
         return typeName;
     }
