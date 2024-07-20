@@ -391,6 +391,8 @@ public:
 	};
 };
 
+// takes a reward function pointer as input, it just makes the reward return 0 if the player is demoed
+// prevents the bot from farming air reward by jumping before being demo'd for example.
 class NotDemoedReward : public RewardFunction {
 public:
 
