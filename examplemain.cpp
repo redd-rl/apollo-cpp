@@ -5,12 +5,15 @@
 #include <RLGymSim_CPP/Utils/TerminalConditions/NoTouchCondition.h>
 #include <RLGymSim_CPP/Utils/TerminalConditions/GoalScoreCondition.h>
 #include <RLGymSim_CPP/Utils/OBSBuilders/DefaultOBS.h>
+#include <RLGymSim_CPP/Utils/OBSBuilders/DefaultOBSPadded.h>
 #include <RLGymSim_CPP/Utils/StateSetters/RandomState.h>
 #include <RLGymSim_CPP/Utils/StateSetters/KickoffState.h>
 #include <RLGymSim_CPP/Utils/ActionParsers/DiscreteAction.h>
 #include "CustomRewards.h"
 #include "CustomStateSetters.h"
 #include "CustomCombinedReward.h"
+#include "RLBotClient.h"
+#include "AdvancedOBSPadded.h"
 #include "RLBotClient.h"
 
 using namespace RLGPC; // RLGymPPO
@@ -82,10 +85,14 @@ void OnIteration(Learner* learner, Report& allMetrics) {
 constexpr auto NDR = [](RewardFunction* rewardFunc) -> NotDemoedReward* {
 	return new NotDemoedReward(rewardFunc);
 };
+constexpr auto UBE = [](StateSetter* stateSetter, float unlimBoostChance) -> UnlimBoostEpisodeSetter* {
+	return new UnlimBoostEpisodeSetter(stateSetter, unlimBoostChance);
+};
+
 
 // Create the RLGymSim environment for each of our games
 EnvCreateResult EnvCreateFunc() {
-	constexpr int TICK_SKIP = 10;
+	constexpr int TICK_SKIP = 8;
 	constexpr float NO_TOUCH_TIMEOUT_SECS = 15.f;
 	float aggressionBias = 0.25f;
 	float goalReward = 10;
@@ -93,17 +100,17 @@ EnvCreateResult EnvCreateFunc() {
 	auto rewards = new LogCombinedReward( // Format is { RewardFunc(), weight }
 		{ 
 			{ new EventReward({.teamGoal = goalReward, .concede = concedeReward,}), 30.f},
-			{ new ZeroSumReward(new TouchBallRewardScaledByHitForce(), 1.f, 0.5f), 10.f},
-			{ new SpeedTowardBallReward(), 4.f},
-			{ NDR(new InAirReward()), 0.25f},
-			{ new ZeroSumReward(new VelocityBallToGoalReward(), 1.f, 1.f), 20.f},
-			{ new SpeedflipKickoffReward(), 8.f },
+			{ new VelocityBallToGoalReward(), 25.f},
+			{ new SpeedflipKickoffReward(), 15.f },
+			{ new ZeroSumReward(new TouchBallRewardScaledByHitForce(), 1.f, 0.7f), 16.f},
 			{ new ZeroSumReward(new PossessionReward(), 1.f, 1.f), 5.f},
+			{ new SpeedTowardBallReward(), 4.f},
 			{ new ZeroSumReward(new JumpTouchReward(), 1.f, 0.5f), 3.f},
-			{ new LightingMcQueenReward(), 2.f},
-		    { new ZeroSumReward(new AerialReward(), 1.f, 0.5f), 1.3f},
-			{ new ZeroSumReward(new SaveBoostReward(), 1.f, 0.35f), 0.5f},
-			{ new ZeroSumReward(new GoalSpeedAndPlacementReward(), 1, 0.6f), 0.9f},
+			{ new ZeroSumReward(new AerialReward(), 1.f, 0.5f), 1.3f},
+			{ new ZeroSumReward(new SaveBoostReward(), 1.f, 0.35f), 1.3f},
+			{ new ZeroSumReward(new GoalSpeedAndPlacementReward(), 1, 0.6f), 1.f},
+			{ NDR(new InAirReward()), 0.25f},
+			{ new LightingMcQueenReward(), 3.f},
 		}
 	);
 
@@ -124,13 +131,13 @@ EnvCreateResult EnvCreateFunc() {
 
 	auto obs = new DefaultOBS();
 	auto actionParser = new DiscreteAction();
-	auto stateSetter = new WeightedSampleSetter(
+	auto stateSetter = UBE(new WeightedSampleSetter(
 		{ 
 			{new RandomState(true, true, false), 0.7f},
-		    {new KickoffState(), 0.3f},
+		    {new KickoffState(), 0.4f},
 			{new WallPracticeState(), 0.7f},
 		}
-	);
+	), 0.15f);
 
 	Match* match = new Match(
 		rewards,
@@ -165,7 +172,7 @@ int main(int argc, char* argv[]) {
 		};
 	};
 	// Play around with these to see what the optimal is for your machine, more isn't always better
-	cfg.numThreads = 25;
+	cfg.numThreads = 22;
 	cfg.numGamesPerThread = 30;
 	cfg.skillTrackerConfig.enabled = true;
 	// cfg.skillTrackerConfig.perModeRatings = true later

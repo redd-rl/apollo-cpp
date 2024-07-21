@@ -14,6 +14,7 @@ float norm(Vec vec1) {
 	return std::pow((std::pow(vec1.x, 2) + std::pow(vec1.y, 2) + std::pow(vec1.z, 2)), 2);
 }
 
+// reward the player for moving fast toward the ball, but only on kickoff state.
 class SpeedflipKickoffReward : public RewardFunction {
 	virtual float GetReward(const PlayerData& player, const GameState& state, const Action& prevAction) {
 		if (state.ball.vel.IsZero() and player.boostFraction < 0.02) {
@@ -23,12 +24,14 @@ class SpeedflipKickoffReward : public RewardFunction {
 	};
 };
 
+// reward the player for going fast
 class LightingMcQueenReward : public RewardFunction {
 	virtual float GetReward(const PlayerData& player, const GameState& state, const Action& prevAction) {
 		return sqrt(RS_CLAMP(player.phys.vel.Length() / 1800, 0, 1));
 	}
 };
 
+// reward the player for touching the ball mid air
 class JumpTouchReward : public RewardFunction {
 public:
 	JumpTouchReward(float minHeight = 200.0f, float exp = 1.0f)
@@ -57,6 +60,7 @@ private:
 	int ticksUntilNextReward = 0;
 };
 
+// reward the player for moving fast at the ball
 class SpeedTowardBallReward : public RewardFunction {
 public:
 	virtual float GetReward(const PlayerData& player, const GameState& state, const Action& prevAction) {
@@ -66,6 +70,7 @@ public:
 
 // thanks so much fredrik, goat.
 
+// reward the player for high goal speed, (warning very explosive as it's a high return reward, LOW WEIGHT.)
 class GoalSpeedReward : public RewardFunction {
 public:
 	GoalSpeedReward(float rewardFactor = 0.1f) : rewardFactor(rewardFactor) {};
@@ -84,6 +89,7 @@ private:
 	float rewardFactor;
 };
 
+// reward the player for dribbling and matching the speed of the ball.
 class DribbleReward : public RewardFunction {
 public:
 	virtual float GetReward(const PlayerData& player, const GameState& state, const Action& prevAction) {
@@ -106,7 +112,7 @@ public:
 };
 
 
-
+// reward the player for being in the air (opposite of lavafloor)
 class InAirReward : public RewardFunction {
 public:
 	virtual float GetReward(const PlayerData& player, const GameState& state, const Action& prevAction) {
@@ -119,6 +125,7 @@ public:
 	};
 };
 
+// reward player for hitting the ball hard
 class TouchBallRewardScaledByHitForce : public RewardFunction {
 public:
 	int maxHitSpeed = 3000;
@@ -146,6 +153,7 @@ public:
 	};
 };
 
+// reward player for goal speed and goal placement
 class GoalSpeedAndPlacementReward : public RewardFunction {
 public:
 	float prevScoreBlue = 0;
@@ -192,6 +200,7 @@ public:
 	};
 };
 
+// reward player more for picking up big pads than small pads
 class PickupBoostReward : public RewardFunction {
 public:
 	GameState lastState;
@@ -221,6 +230,7 @@ private:
 	float small;
 };
 
+// ???? reward player for being closest to the ball on kickoff idk aether6837 wrote this.
 class KickoffProximityRewardAllModes : public RewardFunction {
 	virtual float GetReward(const PlayerData& player, const GameState& state, const Action& prevAction) {
 		if (state.ball.vel.IsZero()) {
@@ -249,6 +259,8 @@ class KickoffProximityRewardAllModes : public RewardFunction {
 	};
 };
 
+// reward the player for being the closest to the ball and their team having touched the ball last
+// ambiguous in 1v1.
 class PossessionReward : public RewardFunction {
 public:
 	float prevTeamTouch = -1.f;
@@ -288,6 +300,8 @@ private:
 	float minDist;
 };
 
+// reward the player for aerial touches initially and then exponential increase the more it gets.
+// idk rolv wrote this
 class AerialDistanceReward : public RewardFunction {
 public:
 	int RampHeight = 256;
@@ -346,6 +360,7 @@ public:
 	};
 };
 
+// reward the player for having speed towards the ball mid-air
 class AerialReward : public RewardFunction {
 public:
 	int BALL_MIN_HEIGHT = 300;
@@ -377,6 +392,7 @@ public:
 	}
 };
 
+// reward the bot for being on the wall
 class PlayerOnWallReward : public RewardFunction {
 public:
 	virtual float GetReward(const PlayerData& player, const GameState& state, const Action& prevAction) {
@@ -384,6 +400,7 @@ public:
 	};
 };
 
+// punish the bot for being on the ground
 class LavaFloorReward : public RewardFunction {
 public:
 	virtual float GetReward(const PlayerData& player, const GameState& state, const Action& prevAction) {
@@ -391,6 +408,8 @@ public:
 	};
 };
 
+// takes a reward function pointer as input, it just makes the reward return 0 if the player is demoed
+// prevents the bot from farming air reward by jumping before being demo'd for example.
 class NotDemoedReward : public RewardFunction {
 public:
 

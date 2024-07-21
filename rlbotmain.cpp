@@ -14,7 +14,7 @@ int main(int argc, char* argv[]) {
     std::filesystem::path policyPath = exePath.parent_path() / "PPO_POLICY.lt";
 
 	RLBotParams params = {
-		.port = 42654,
+		.port = 42653,
 		.obsBuilder = new DefaultOBS(),
 		.actionParser = new DiscreteAction(),
 		.policyPath = policyPath,

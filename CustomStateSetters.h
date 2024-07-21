@@ -42,6 +42,42 @@ public:
 	};
 };
 
+class UnlimBoostEpisodeSetter : public StateSetter {
+public:
+
+	StateSetter* childFunc;
+	float unlimBoostChance;
+	bool ownsFunc;
+	UnlimBoostEpisodeSetter(StateSetter* childFunc, float unlimBoostChance = 0, bool ownsFunc = true)
+		: childFunc(childFunc), unlimBoostChance(unlimBoostChance), ownsFunc(ownsFunc) {};
+
+	~UnlimBoostEpisodeSetter() {
+		if (ownsFunc)
+			delete childFunc;
+	}
+
+protected:
+	virtual GameState ResetState(Arena* arena) {
+		if (RS_CLAMP(unlimBoostChance, 0, 1) > RocketSim::Math::RandFloat(0, 1)) {
+			MutatorConfig mutatorConfig = arena->GetMutatorConfig();
+			mutatorConfig.carSpawnBoostAmount = 200;
+			mutatorConfig.boostUsedPerSecond = 0;
+			arena->SetMutatorConfig(mutatorConfig);
+			childFunc->ResetState(arena);
+			return GameState(arena);
+
+		}
+		else {
+			MutatorConfig mutatorConfig = arena->GetMutatorConfig();
+			mutatorConfig.carSpawnBoostAmount = RLConst::BOOST_SPAWN_AMOUNT;
+			mutatorConfig.boostUsedPerSecond = RLConst::BOOST_USED_PER_SECOND;
+			arena->SetMutatorConfig(mutatorConfig);
+			childFunc->ResetState(arena);
+			return GameState(arena);
+		};
+	};
+};
+
 // https://github.com/RLGym/rlgym-tools/blob/main/rlgym_tools/extra_state_setters/wall_state.py
 // deg to rad here is calculated using btDegrees(x)
 // BallRadius is a CommonValues object, not using 94.
@@ -123,7 +159,6 @@ private:
 		CarState cs = {};
 		cs.pos = { carXPos, carYPos, carZPos };
 		cs.rotMat = Angle(carYawRot, carPitchRot, carRollRot).ToRotMat();
-		cs.boost = 100;
 
 		chosenCar->SetState(cs);
 
@@ -135,7 +170,6 @@ private:
 			CarState cs = {};
 			cs.pos = { (float)RocketSim::Math::RandInt(0, 2944) - 1472, (float)RocketSim::Math::RandInt(0, 3968) - 1984, 0};
 			cs.rotMat = Angle(0, btDegrees(RocketSim::Math::RandInt(0, 360) - 180), 0).ToRotMat();
-			cs.boost = 33;
 			car->SetState(cs);
 		};
 		return GameState(arena);
@@ -188,7 +222,6 @@ private:
 
 		blueCs.pos = { blueX, blueY, blueZ };
 		blueCs.rotMat = Angle(blueYawRot, bluePitchRot, blueRollRot).ToRotMat();
-		blueCs.boost = 100;
 
 		wallCarBlue->SetState(blueCs);
 
@@ -212,7 +245,6 @@ private:
 
 			orangeCs.pos = { orangeX, orangeY, orangeZ };
 			orangeCs.rotMat = Angle(orangeYawRot, orangePitchRot, orangeRollRot).ToRotMat();
-			orangeCs.boost = 100;
 
 			wallCarOrange->SetState(orangeCs);
 		};
@@ -224,7 +256,6 @@ private:
 			CarState cs = {};
 			cs.pos = { (float)RocketSim::Math::RandInt(0, 2944) - 1472, (float)RocketSim::Math::RandInt(0, 3968) - 1984, 0 };
 			cs.rotMat = Angle(0, btDegrees(RocketSim::Math::RandInt(0, 360) - 180), 0).ToRotMat();
-			cs.boost = 33;
 			car->SetState(cs);
 		};
 		return GameState(arena);
@@ -282,7 +313,6 @@ private:
 		float wallCarRollRot = btDegrees(-90 * defenseInverter);
 
 		wallCarCs.rotMat = Angle(wallCarYawRot, wallCarPitchRot, wallCarRollRot).ToRotMat();
-		wallCarCs.boost = 25;
 		wallCar->SetState(wallCarCs);
 
 		Car* challengeCar;
@@ -303,7 +333,6 @@ private:
 			float challengeCarRollRot = btDegrees(0);
 
 			challengeCarCs.rotMat = Angle(challengeCarYawRot, challengeCarPitchRot, challengeCarRollRot).ToRotMat();
-			challengeCarCs.boost = 100;
 
 			challengeCar->SetState(challengeCarCs);
 		}
@@ -315,7 +344,6 @@ private:
 			CarState cs = {};
 			cs.pos = { (float)RocketSim::Math::RandInt(0, 2944) - 1472, (float)(- 4500 + RocketSim::Math::RandInt(0, 3968) - 250) * defenseInverter, 0};
 			cs.rotMat = Angle(0, btDegrees(RocketSim::Math::RandInt(0, 360) - 180), 0).ToRotMat();
-			cs.boost = 33;
 			car->SetState(cs);
 		};
 

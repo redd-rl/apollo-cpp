@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 3.8)
 
 project("RLGymPPO_CPP_Example")
-add_executable(RLGymPPO_CPP_Example "./ExampleMain.cpp" "./CustomRewards.h" "./CustomCombinedReward.h" "./CustomStateSetters.h")
+add_executable(RLGymPPO_CPP_Example "./ExampleMain.cpp" "./CustomRewards.h" "./CustomCombinedReward.h" "./CustomStateSetters.h" "./AdvancedOBSPadded.cpp" "./AdvancedOBSPadded.h" )
 add_executable(ApolloRLBotRunner "./rlbotmain.cpp" "./RLBotClient.cpp" "./RLBotClient.h")
 # Set C++ version to 20
 set_target_properties(RLGymPPO_CPP_Example PROPERTIES LINKER_LANGUAGE CXX)
